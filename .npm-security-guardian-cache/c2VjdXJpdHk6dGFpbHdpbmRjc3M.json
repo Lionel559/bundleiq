@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "tailwindcss",
+  "metadata": {
+    "name": "tailwindcss",
+    "description": "A utility-first CSS framework for rapidly building custom user interfaces.",
+    "license": "MIT",
+    "latestVersion": "4.3.0",
+    "weeklyDownloads": 110674989,
+    "createdAt": "2017-10-06T15:05:20.621Z",
+    "lastPublishedAt": "2026-05-08T20:25:26.174Z",
+    "packageAgeDays": 3167,
+    "dependencyCount": 0,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}

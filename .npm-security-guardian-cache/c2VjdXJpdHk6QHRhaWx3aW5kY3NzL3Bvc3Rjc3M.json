@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "@tailwindcss/postcss",
+  "metadata": {
+    "name": "@tailwindcss/postcss",
+    "description": "PostCSS plugin for Tailwind CSS, a utility-first CSS framework for rapidly building custom user interfaces",
+    "license": "MIT",
+    "latestVersion": "4.3.0",
+    "weeklyDownloads": 22241631,
+    "createdAt": "2024-02-02T16:47:09.640Z",
+    "lastPublishedAt": "2026-05-08T20:25:42.926Z",
+    "packageAgeDays": 857,
+    "dependencyCount": 5,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}

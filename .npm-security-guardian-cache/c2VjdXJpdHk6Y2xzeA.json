@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "clsx",
+  "metadata": {
+    "name": "clsx",
+    "description": "A tiny (239B) utility for constructing className strings conditionally.",
+    "license": "MIT",
+    "latestVersion": "2.1.1",
+    "weeklyDownloads": 98790870,
+    "createdAt": "2018-12-24T22:41:29.201Z",
+    "lastPublishedAt": "2024-04-23T05:26:04.645Z",
+    "packageAgeDays": 2723,
+    "dependencyCount": 0,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "class-variance-authority",
+  "metadata": {
+    "name": "class-variance-authority",
+    "description": "Class Variance Authority 🧬",
+    "license": "Apache-2.0",
+    "latestVersion": "0.7.1",
+    "weeklyDownloads": 50277008,
+    "createdAt": "2022-01-26T16:09:55.450Z",
+    "lastPublishedAt": "2024-11-26T08:20:34.604Z",
+    "packageAgeDays": 1594,
+    "dependencyCount": 1,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}

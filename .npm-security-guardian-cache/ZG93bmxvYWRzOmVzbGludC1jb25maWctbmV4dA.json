@@ -1,0 +1,10 @@
+{
+  "cachedAt": "2026-06-09T07:23:20.271Z",
+  "cacheKey": "downloads:eslint-config-next",
+  "value": {
+    "downloads": 21984122,
+    "start": "2026-05-27",
+    "end": "2026-06-02",
+    "package": "eslint-config-next"
+  }
+}

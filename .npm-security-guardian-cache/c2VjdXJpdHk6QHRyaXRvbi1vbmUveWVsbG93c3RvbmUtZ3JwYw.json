@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "@triton-one/yellowstone-grpc",
+  "metadata": {
+    "name": "@triton-one/yellowstone-grpc",
+    "description": "Yellowstone gRPC Geyser Node.js Client",
+    "license": "Apache-2.0",
+    "latestVersion": "5.0.8",
+    "weeklyDownloads": 28801,
+    "createdAt": "2023-06-27T22:00:29.779Z",
+    "lastPublishedAt": "2026-04-07T12:32:01.660Z",
+    "packageAgeDays": 1077,
+    "dependencyCount": 4,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}

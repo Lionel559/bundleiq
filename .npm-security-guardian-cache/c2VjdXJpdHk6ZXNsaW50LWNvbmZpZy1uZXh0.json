@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "eslint-config-next",
+  "metadata": {
+    "name": "eslint-config-next",
+    "description": "ESLint configuration used by Next.js.",
+    "license": "MIT",
+    "latestVersion": "16.2.7",
+    "weeklyDownloads": 21984122,
+    "createdAt": "2015-09-21T01:48:01.953Z",
+    "lastPublishedAt": "2026-06-01T18:18:13.266Z",
+    "packageAgeDays": 3914,
+    "dependencyCount": 9,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}

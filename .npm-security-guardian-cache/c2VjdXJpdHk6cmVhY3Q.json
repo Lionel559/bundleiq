@@ -1,0 +1,20 @@
+{
+  "cachedAt": "2026-06-09T07:22:24.039Z",
+  "packageName": "react",
+  "metadata": {
+    "name": "react",
+    "description": "React is a JavaScript library for building user interfaces.",
+    "license": "MIT",
+    "latestVersion": "19.2.7",
+    "weeklyDownloads": 134410428,
+    "createdAt": "2011-10-26T17:46:21.942Z",
+    "lastPublishedAt": "2026-06-01T18:00:48.323Z",
+    "packageAgeDays": 5339,
+    "dependencyCount": 0,
+    "hasInstallScript": false,
+    "installScriptNames": [],
+    "hasRepository": true,
+    "hasLicense": true,
+    "warnings": []
+  }
+}
