@@ -21,7 +21,7 @@ The current implementation is built from the official public resources provided 
 
 ## Public Architecture Document
 
-[TO BE ADDED: Google Docs/Notion public URL]
+https://docs.google.com/document/d/1ZJ-qHyBRev9KLXnZx4vIOM5de4ZFDiXCSVdV1FAb48I/edit?usp=sharing
 
 BundleIQ is organized around clean boundaries:
 
@@ -200,8 +200,11 @@ Final local evidence was summarized from `.data/jito-evidence.json` into a sanit
 
 Sanitized judge exports are available at:
 
+- `src/data/final-jito-evidence.json`
 - `docs/evidence/final-jito-evidence-summary.md`
 - `docs/evidence/final-jito-evidence-summary.json`
+
+The deployed `/api/jito/bundle-status` route reads `.data/jito-evidence.json` when it exists. On Vercel or production builds where `.data` is missing or empty, it falls back to `src/data/final-jito-evidence.json`, a sanitized static evidence file containing only public bundle metadata, status timestamps, landed slots, network, tip, transaction count, source, and failure classification when present. Secret keys, raw payloads, signed transactions, and private environment values are not included.
 
 Bundle ID alone was not treated as success; status was checked separately. Only `latestStatus: landed` with `checkedAt` and `landedSlot` is claimed as landed. `network-error` and failed records are observed failed operational evidence from testnet status checks and are not counted as landed.
 
@@ -306,6 +309,12 @@ JITO_TESTNET_SECRET_KEY=[12,34,56,...]
 Never commit `.env.local`. The repo `.gitignore` already ignores `.env*` and only allows `.env.example`, but still check `git status` before committing. Fund only the generated testnet wallet with testnet SOL; never fund it on mainnet, never paste a mainnet wallet here, and never reuse a production keypair. Jito remains disabled unless `JITO_ENABLED=true`.
 
 Yellowstone improves judge-ready slot monitoring because RPC polling alone cannot provide the same low-latency stream ordering, skipped/dead slot signals, or processed-to-confirmed timing from a stream. Triton Dragon's Mouth documents Yellowstone gRPC as a backend stream, so BundleIQ keeps it server-side only. Final validation connected through SolInfra Yellowstone in FRA using server-side endpoint/API-key configuration. If SolInfra/Yellowstone credentials are absent or the stream is unavailable, the app does not crash and does not claim Yellowstone is connected; `/api/solana/stream-status` returns `source: "rpc-fallback"` with devnet RPC slot data and a direct stream status message.
+
+## Deployment Notes
+
+- Jito evidence on Vercel comes from `src/data/final-jito-evidence.json` when `.data/jito-evidence.json` is unavailable or empty. The API still prefers local `.data` evidence in runtime environments where it exists.
+- Yellowstone gRPC is loaded server-side through the package's CommonJS export to avoid Vercel/Node parsing the package's ESM `.js` output as CommonJS. Local Node runtime Yellowstone remains supported when SolInfra endpoint/token values are configured.
+- If Vercel serverless cannot maintain the Yellowstone stream, `/api/solana/stream-status` returns `source: "rpc-fallback"` and the dashboard/requirement tracker must treat slot streaming as fallback evidence, not Done. Use the SolInfra active connection screenshot from local validation as Yellowstone evidence in that case.
 
 ## Devnet Safety Notes
 

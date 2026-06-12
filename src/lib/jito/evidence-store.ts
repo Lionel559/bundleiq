@@ -6,6 +6,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 
+import finalJitoEvidence from "@/data/final-jito-evidence.json";
 import type { SimulatedFailureType } from "@/lib/solana/fault-injection";
 import type {
   BundleEvidenceSource,
@@ -451,13 +452,45 @@ function normalizePersistedRecord(
 
   const latestStatus = normalizeStatus(value.latestStatus);
   const checkedAt = asString(value.checkedAt) ?? asString(value.statusCheckedAt);
+  const landedSlot = normalizeLandedSlot(
+    latestStatus,
+    asNumber(value.landedSlot),
+  );
+  const confirmationStatus = asString(value.confirmationStatus);
+  const confirmationLevel =
+    asString(value.confirmationLevel) ?? confirmationStatus;
+  const error = value.error ?? null;
+  const rawStatusPayload = value.rawStatusPayload ?? null;
+  const failureClassification =
+    latestStatus === "landed"
+      ? null
+      : normalizeFailureClassification(value.failureClassification) ??
+        classifyRealJitoFailure(latestStatus, error);
   const lifecycleEvents = normalizeLifecycleEvents(
     value.lifecycleEvents ?? value.lifecycle,
   );
-  const statusChecks = normalizeStatusChecks(value.statusChecks).slice(
+  const normalizedStatusChecks = normalizeStatusChecks(value.statusChecks).slice(
     0,
     MAX_RECORD_STATUS_CHECKS,
   );
+  const statusChecks =
+    normalizedStatusChecks.length > 0
+      ? normalizedStatusChecks
+      : checkedAt
+        ? [
+            {
+              bundleId,
+              checkedAt,
+              status: latestStatus,
+              landedSlot,
+              confirmationStatus,
+              confirmationLevel,
+              failureClassification,
+              error,
+              rawStatusPayload,
+            },
+          ]
+        : [];
 
   return {
     bundleId,
@@ -466,26 +499,25 @@ function normalizePersistedRecord(
     submittedAt,
     latestStatus,
     checkedAt,
-    landedSlot: asNumber(value.landedSlot),
-    confirmationStatus: asString(value.confirmationStatus),
-    confirmationLevel:
-      asString(value.confirmationLevel) ?? asString(value.confirmationStatus),
-    rawStatusPayload: value.rawStatusPayload ?? null,
+    landedSlot,
+    confirmationStatus,
+    confirmationLevel,
+    rawStatusPayload,
     tipLamports: asNumber(value.tipLamports) ?? 0,
     transactionCount: asNumber(value.transactionCount) ?? 0,
-    failureClassification:
-      latestStatus === "landed"
-        ? null
-        : normalizeFailureClassification(value.failureClassification) ??
-          classifyRealJitoFailure(latestStatus, value.error),
+    failureClassification,
     lifecycleEvents,
     statusChecks,
     initialStatus: "submitted-not-landed",
-    error: value.error ?? null,
+    error,
   };
 }
 
 function normalizeEvidenceFile(value: unknown): PersistedRealJitoEvidenceFile {
+  if (Array.isArray(value)) {
+    return normalizeEvidenceFile({ updatedAt: null, records: value });
+  }
+
   if (!isObject(value)) {
     return createEmptyEvidenceFile();
   }
@@ -503,15 +535,26 @@ function normalizeEvidenceFile(value: unknown): PersistedRealJitoEvidenceFile {
       recordsByBundleId.set(record.bundleId, record);
     }
   }
+  const normalizedRecords = Array.from(recordsByBundleId.values()).slice(
+    0,
+    MAX_RECORDS,
+  );
+  const normalizedStatusChecks = normalizeStatusChecks(value.statusChecks).slice(
+    0,
+    MAX_STATUS_CHECKS,
+  );
+  const statusChecks =
+    normalizedStatusChecks.length > 0
+      ? normalizedStatusChecks
+      : normalizedRecords
+          .flatMap((record) => record.statusChecks)
+          .slice(0, MAX_STATUS_CHECKS);
 
   return {
     version: 1,
     updatedAt: asString(value.updatedAt),
-    records: Array.from(recordsByBundleId.values()).slice(0, MAX_RECORDS),
-    statusChecks: normalizeStatusChecks(value.statusChecks).slice(
-      0,
-      MAX_STATUS_CHECKS,
-    ),
+    records: normalizedRecords,
+    statusChecks,
   };
 }
 
@@ -524,14 +567,14 @@ function readEvidenceFile(): PersistedRealJitoEvidenceFile {
     ensureDataDirectory();
 
     if (!existsSync(EVIDENCE_FILE_PATH)) {
-      return createEmptyEvidenceFile();
+      return withStaticFallback(createEmptyEvidenceFile());
     }
 
-    return normalizeEvidenceFile(
-      JSON.parse(readFileSync(EVIDENCE_FILE_PATH, "utf8")),
+    return withStaticFallback(
+      normalizeEvidenceFile(JSON.parse(readFileSync(EVIDENCE_FILE_PATH, "utf8"))),
     );
   } catch {
-    return createEmptyEvidenceFile();
+    return withStaticFallback(createEmptyEvidenceFile());
   }
 }
 
@@ -550,6 +593,28 @@ function writeEvidenceFile(store: PersistedRealJitoEvidenceFile) {
     )}\n`,
     "utf8",
   );
+}
+
+function hasEvidence(store: PersistedRealJitoEvidenceFile) {
+  return store.records.length > 0;
+}
+
+function shouldUseStaticEvidenceFallback() {
+  return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+}
+
+function readStaticEvidenceFile(): PersistedRealJitoEvidenceFile {
+  return normalizeEvidenceFile(finalJitoEvidence);
+}
+
+function withStaticFallback(
+  localStore: PersistedRealJitoEvidenceFile,
+): PersistedRealJitoEvidenceFile {
+  if (!shouldUseStaticEvidenceFallback() || hasEvidence(localStore)) {
+    return localStore;
+  }
+
+  return readStaticEvidenceFile();
 }
 
 function upsertRecord(

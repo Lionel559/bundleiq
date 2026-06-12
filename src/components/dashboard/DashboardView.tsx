@@ -835,9 +835,7 @@ export function DashboardView() {
           }`;
   const isTestnetWalletFunded =
     testnetWalletStatus.state === "ready" && testnetWalletStatus.funded;
-  const displayedRealJitoEvidence = isTestnetWalletFunded
-    ? realJitoEvidence
-    : [];
+  const displayedRealJitoEvidence = realJitoEvidence;
   const realJitoStatusSummary = displayedRealJitoEvidence.reduce(
     (summary, record) => {
       if (record.latestStatus === "landed") {
@@ -2330,10 +2328,7 @@ export function DashboardView() {
                           className="px-3 py-4 text-center text-muted-foreground"
                         >
                           {realJitoEvidenceError ??
-                            (!isTestnetWalletFunded &&
-                            testnetWalletStatus.state === "ready"
-                              ? JITO_TESTNET_UNFUNDED_MESSAGE
-                              : "No real Jito bundle evidence captured yet.")}
+                            "No real Jito bundle evidence captured yet."}
                         </td>
                       </tr>
                     )}

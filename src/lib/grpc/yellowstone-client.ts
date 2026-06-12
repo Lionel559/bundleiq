@@ -3,6 +3,8 @@ import type {
   SubscribeUpdate,
 } from "@triton-one/yellowstone-grpc";
 import type { ChannelOptions, ClientDuplexStream } from "@grpc/grpc-js";
+import { createRequire } from "node:module";
+import path from "node:path";
 
 import {
   getYellowstoneSlotSnapshot,
@@ -43,6 +45,10 @@ type YellowstoneDuplexStream = ClientDuplexStream<
 type YellowstoneClientInstance = InstanceType<YellowstoneModule["default"]> & {
   connect?: () => Promise<void>;
 };
+
+const requireYellowstonePackage = createRequire(
+  path.join(process.cwd(), "package.json"),
+);
 
 interface YellowstoneRuntime {
   client: InstanceType<YellowstoneModule["default"]> | null;
@@ -514,6 +520,19 @@ function getChannelOptions(): ChannelOptions {
   };
 }
 
+async function loadYellowstoneModule(): Promise<YellowstoneModule> {
+  if (process.env.NEXT_RUNTIME && process.env.NEXT_RUNTIME !== "nodejs") {
+    throw new Error("Yellowstone gRPC requires the Node.js runtime.");
+  }
+
+  // The package's native import condition points at ESM .js files without a
+  // package-level module marker. Loading the CJS condition avoids Vercel/Node
+  // parsing that ESM output as CommonJS.
+  return requireYellowstonePackage(
+    "@triton-one/yellowstone-grpc",
+  ) as YellowstoneModule;
+}
+
 async function startYellowstoneStream(endpoint: string, apiKey: string) {
   const runtime = getRuntime();
   const normalizedEndpoint = normalizeYellowstoneEndpoint(endpoint);
@@ -524,7 +543,7 @@ async function startYellowstoneStream(endpoint: string, apiKey: string) {
     tokenLength: apiKey.length,
   });
 
-  const yellowstone = await import("@triton-one/yellowstone-grpc");
+  const yellowstone = await loadYellowstoneModule();
   const YellowstoneClient = yellowstone.default;
   // The SDK maps this constructor argument to the Yellowstone gRPC x-token
   // metadata header, which carries the SolInfra API key server-side only.
