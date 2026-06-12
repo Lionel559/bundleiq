@@ -134,6 +134,7 @@ const JITO_TESTNET_UNFUNDED_MESSAGE =
   "Testnet wallet is unfunded. Real Jito submission blocked.";
 const JITO_STATUS_POLL_INTERVAL_MS = 5_000;
 const JITO_STATUS_POLL_MAX_ATTEMPTS = 12;
+const SOLANA_STATUS_POLL_INTERVAL_MS = 5_000;
 const REAL_JITO_TEST_TARGET = 10;
 const FETCH_RETRY_DELAYS_MS = [1_000, 2_000, 4_000];
 
@@ -471,6 +472,13 @@ function formatEvidenceSlot(slot?: number | null) {
   return typeof slot === "number" ? formatSlot(slot) : "Pending";
 }
 
+function formatStreamConnectionStatus(status: YellowstoneStreamStatusResponse) {
+  const streamStatus =
+    status.streamStatus.charAt(0).toUpperCase() + status.streamStatus.slice(1);
+
+  return status.streamConnected ? `${streamStatus} active` : streamStatus;
+}
+
 function isRealJitoTestnetBundle(bundle: BundleSubmissionResult) {
   return (
     bundle.source === "real-jito-testnet" ||
@@ -696,7 +704,12 @@ export function DashboardView() {
   >([]);
   const fallbackSolanaStatus: YellowstoneStreamStatusResponse = {
     source: "rpc-fallback",
+    streamSource: "SolInfra Yellowstone",
+    endpointRegion: "FRA",
     currentSlot: network.currentSlot,
+    parentSlot: null,
+    latestStreamedSlot: null,
+    firstSeenAt: null,
     processedSlot: network.currentSlot,
     confirmedSlot: network.currentSlot - 1,
     finalizedSlot: network.currentSlot - 32,
@@ -722,7 +735,7 @@ export function DashboardView() {
   const networkFeedLabel = isNetworkLoading
     ? "Loading Yellowstone"
     : isYellowstoneNetwork
-      ? "Yellowstone Devnet"
+      ? "SolInfra Yellowstone"
       : isRpcFallbackNetwork
         ? "RPC Fallback"
       : "Mock Fallback";
@@ -746,20 +759,34 @@ export function DashboardView() {
   const finalizedSlotValue = isNetworkLoading
     ? "Loading Yellowstone..."
     : formatOptionalSlot(activeSolanaStatus.finalizedSlot);
+  const parentSlotValue = isNetworkLoading
+    ? "Loading Yellowstone..."
+    : formatOptionalSlot(activeSolanaStatus.parentSlot);
+  const latestStreamedSlotValue = isNetworkLoading
+    ? "Loading Yellowstone..."
+    : formatOptionalSlot(activeSolanaStatus.latestStreamedSlot);
+  const firstSeenAtValue = isNetworkLoading
+    ? "Loading Yellowstone..."
+    : formatEvidenceTimestamp(activeSolanaStatus.firstSeenAt);
+  const lastStreamUpdateValue = isNetworkLoading
+    ? "Loading Yellowstone..."
+    : formatEvidenceTimestamp(activeSolanaStatus.lastStreamUpdate);
   const processedToConfirmedDeltaValue = isNetworkLoading
     ? "Loading Yellowstone..."
     : formatOptionalDelta(activeSolanaStatus.processedToConfirmedDeltaMs);
   const streamStatusValue = isNetworkLoading
     ? "Loading Yellowstone..."
-    : isYellowstoneNetwork
-      ? "Connected"
-      : isRpcFallbackNetwork
-        ? "RPC fallback"
-        : "Mock fallback";
+    : formatStreamConnectionStatus(activeSolanaStatus);
+  const streamSourceValue = isNetworkLoading
+    ? "SolInfra Yellowstone"
+    : activeSolanaStatus.streamSource;
+  const endpointRegionValue = isNetworkLoading
+    ? "FRA"
+    : activeSolanaStatus.endpointRegion;
   const dataSourceValue = isNetworkLoading
     ? "Loading Yellowstone..."
     : isYellowstoneNetwork
-      ? "Yellowstone gRPC Devnet"
+      ? activeSolanaStatus.streamSource
       : isRpcFallbackNetwork
         ? "Solana Devnet RPC"
       : "Mock Fallback";
@@ -935,7 +962,7 @@ export function DashboardView() {
       networkSource:
         activeSolanaStatus.source === "yellowstone" &&
         activeSolanaStatus.streamConnected
-          ? "Yellowstone devnet"
+          ? "SolInfra Yellowstone"
           : activeSolanaStatus.streamError?.toLowerCase().includes("mock fallback")
             ? "mock fallback"
             : "devnet RPC fallback",
@@ -948,7 +975,7 @@ export function DashboardView() {
         "Real devnet memo rows are labeled real-devnet-memo.",
         "Devnet memo tests prove lifecycle tracking. They are not Jito bundle submissions.",
         "Jito bundle evidence is simulated only.",
-        "Yellowstone is connected only when stream status reports yellowstone and connected.",
+        "SolInfra Yellowstone is connected only when stream status reports yellowstone and connected.",
       ],
     };
   }
@@ -1613,7 +1640,7 @@ export function DashboardView() {
       "- Mock lifecycle rows are marked `mock simulation`.",
       "- Real Jito records are counted only when persisted through `/api/jito/bundle-status`.",
       "- Devnet memo tests prove lifecycle tracking. They are not Jito bundle submissions.",
-      "- Yellowstone is marked connected only when `/api/solana/stream-status` reports `source: yellowstone` and `streamConnected: true`.",
+      "- SolInfra Yellowstone is marked connected only when `/api/solana/stream-status` reports `source: yellowstone` and `streamConnected: true`.",
       "- BundleIQ does not treat a sendBundle receipt as landed without a separate status check.",
       "",
       exportNetworkStatusAsMarkdown(activeSolanaStatus),
@@ -1791,9 +1818,14 @@ export function DashboardView() {
     }
 
     loadSolanaStatus();
+    const intervalId = window.setInterval(
+      loadSolanaStatus,
+      SOLANA_STATUS_POLL_INTERVAL_MS,
+    );
 
     return () => {
       isMounted = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 
@@ -1992,10 +2024,10 @@ export function DashboardView() {
               isNetworkLoading
                 ? "Loading Yellowstone stream"
                 : isYellowstoneNetwork
-                  ? `${activeSolanaStatus.commitment} Yellowstone stream`
+                  ? `${activeSolanaStatus.commitment} SolInfra stream`
                   : isRpcFallbackNetwork
                     ? "Solana devnet RPC fallback"
-                  : `${network.rpcLatencyMs}ms mock RPC latency`
+                    : `${network.rpcLatencyMs}ms mock RPC latency`
             }
             tone="success"
           />
@@ -2003,7 +2035,7 @@ export function DashboardView() {
             icon={Activity}
             label="Current Slot"
             value={currentSlotMetricValue}
-            detail={isYellowstoneNetwork ? "Yellowstone gRPC devnet" : networkFeedLabel}
+            detail={isYellowstoneNetwork ? "SolInfra Yellowstone gRPC" : networkFeedLabel}
             tone="info"
           />
           <MetricCard
@@ -2026,7 +2058,7 @@ export function DashboardView() {
           <div className="grid gap-5">
             <SectionPanel
               title="1. Network Status"
-              description="Yellowstone gRPC slot stream with Solana devnet RPC fallback."
+              description="SolInfra Yellowstone gRPC slot stream with Solana devnet RPC fallback."
               action={<StatusBadge label={networkFeedLabel} status={networkFeedSeverity} />}
               className="bg-[linear-gradient(180deg,rgba(15,23,42,0.78),rgba(6,11,18,0.82))]"
             >
@@ -2034,7 +2066,13 @@ export function DashboardView() {
                 <div className="space-y-3">
                   <PanelKicker icon={Activity} label="Yellowstone Slot Stream" />
                   <DetailRow label="Data Source" value={dataSourceValue} />
+                  <DetailRow label="Stream Source" value={streamSourceValue} />
+                  <DetailRow label="Endpoint Region" value={endpointRegionValue} />
                   <DetailRow label="Current Slot" value={currentSlotValue} />
+                  <DetailRow label="Latest Streamed Slot" value={latestStreamedSlotValue} />
+                  <DetailRow label="Parent Slot" value={parentSlotValue} />
+                  <DetailRow label="First Seen" value={firstSeenAtValue} />
+                  <DetailRow label="Last Stream Update" value={lastStreamUpdateValue} />
                   <DetailRow label="Processed Slot" value={processedSlotValue} />
                   <DetailRow label="Confirmed Slot" value={confirmedSlotValue} />
                 </div>
@@ -2045,7 +2083,7 @@ export function DashboardView() {
                     label="Processed -> Confirmed Delta"
                     value={processedToConfirmedDeltaValue}
                   />
-                  <DetailRow label="Stream Status" value={streamStatusValue} />
+                  <DetailRow label="Active Connection Status" value={streamStatusValue} />
                 </div>
               </div>
             </SectionPanel>

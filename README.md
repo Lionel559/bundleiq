@@ -4,20 +4,24 @@
 
 BundleIQ is a Solana infrastructure dashboard for tracking transaction lifecycle, Jito bundle readiness, failure classification, retry strategy, and AI-assisted execution decisions.
 
-The current implementation is built from the official public resources provided for the bounty: Jito SDK/docs, Yellowstone gRPC/docs, and Solana RPC/docs. It is devnet-safe by default. It supports Yellowstone gRPC slot monitoring when a usable endpoint is configured, safe Solana devnet RPC fallback when no Yellowstone endpoint is provided, a real devnet Memo transaction lifecycle test, simulated Jito dashboard flows, and a disabled-by-default Jito testnet submission boundary.
+The current implementation is built from the official public resources provided for the bounty: Jito SDK/docs, Yellowstone gRPC/docs, and Solana RPC/docs. It is devnet-safe by default. It supports SolInfra Yellowstone gRPC slot monitoring when a usable endpoint is configured, preserves safe Solana devnet RPC fallback when the stream is unavailable, includes a real devnet Memo transaction lifecycle test, simulated Jito dashboard flows, and a disabled-by-default Jito testnet submission boundary.
 
 ## What BundleIQ Does
 
-- Reads Solana devnet slot status through Yellowstone gRPC when a compatible endpoint is configured, with RPC fallback when Yellowstone config is missing or unavailable.
+- Reads Solana devnet slot status through SolInfra Yellowstone gRPC when a compatible endpoint is configured, with RPC fallback when Yellowstone credentials are absent or the stream is unavailable.
 - Submits a real devnet Memo transaction when a funded devnet-only keypair is supplied server-side.
 - Records submitted, processed, confirmed, and finalized timestamps for real devnet Memo transactions.
 - Simulates transaction lifecycle progressions and failure cases.
 - Simulates Jito bundle preparation through an adapter pattern without calling Jito endpoints from the dashboard.
 - Constructs Jito bundles from the official Jito docs/SDK model and keeps real submission disabled unless `JITO_ENABLED=true` and a usable endpoint/network/wallet are configured.
-- Computes dynamic mock Jito tips from network health, leader distance, recent failures, and base tip.
+- Computes Jito tip recommendations from live/recent network inputs, leader distance, recent failures, and base tip.
 - Uses retry-agent output to explain whether to refresh blockhash, recalculate tip, and resubmit.
 
 ## System Architecture
+
+## Public Architecture Document
+
+[TO BE ADDED: Google Docs/Notion public URL]
 
 BundleIQ is organized around clean boundaries:
 
@@ -78,7 +82,7 @@ The AI decision panel is responsible for explaining:
 - whether tip recalculation is recommended
 - next action for simulated failures
 
-This is currently deterministic logic, not an LLM agent running autonomously in production.
+This is a deterministic decision agent with visible reasoning for failure, retry, tip, and timing decisions. It does not claim production LLM autonomy or an autonomous production resubmission loop.
 
 ## Failure Classification
 
@@ -120,12 +124,13 @@ For expired blockhash, the recommended action is to refresh blockhash, recalcula
 
 ## Dynamic Tip Strategy
 
-The Jito tip engine calculates mock bundle tips from:
+The Jito tip engine calculates bundle tip recommendations from:
 
 - network health
 - leader distance
 - recent failures
 - base tip
+- recent local bundle status history
 
 Rules:
 
@@ -133,6 +138,8 @@ Rules:
 - Increase tip after tip-too-low or insufficient-tip failures.
 - Reduce pressure when network health is healthy.
 - Never return a tip below the base tip.
+
+The engine supports live/recent network inputs from the dashboard and stream-status path. The final landed Jito evidence used the minimum configured tip where applicable, so the evidence does not claim that every landed bundle used a varied dynamic tip.
 
 ## Jito Testnet Boundary
 
@@ -187,7 +194,9 @@ Final local evidence was summarized from `.data/jito-evidence.json` into a sanit
 - Unique bundles with status checks: 62
 - Total status-check attempts: 76
 - Landed slots recorded: 31
-- Yellowstone status: not configured; devnet RPC fallback only
+- SolInfra Yellowstone status: connected during final validation
+- SolInfra endpoint region: FRA
+- Validation: `npm run lint` passed; `npm run build` passed
 
 Sanitized judge exports are available at:
 
@@ -211,7 +220,7 @@ Completed:
 - Disabled-by-default Jito testnet submission and separate status route.
 - Thirty-one landed real Jito testnet submissions with separate status checks in the sanitized final evidence export.
 - Dynamic tip and leader-window logic.
-- Yellowstone gRPC slot stream adapter with safe RPC fallback when endpoint/token credentials are not configured.
+- SolInfra Yellowstone gRPC slot stream adapter, validated with a live slot stream, with safe RPC fallback when endpoint/token credentials are absent or the stream is unavailable.
 
 Not yet implemented:
 
@@ -234,6 +243,7 @@ http://localhost:3000
 Build verification:
 
 ```bash
+npm run lint
 npm run build
 ```
 
@@ -251,8 +261,10 @@ JITO_BLOCK_ENGINE_URL=https://testnet.block-engine.jito.wtf
 JITO_SOLANA_RPC_URL=https://api.testnet.solana.com
 JITO_TESTNET_SECRET_KEY=[1,2,3...]
 JITO_TIP_LAMPORTS=1000
-YELLOWSTONE_GRPC_ENDPOINT=https://your-devnet-yellowstone-endpoint:443
-YELLOWSTONE_GRPC_TOKEN=your-devnet-yellowstone-token
+SOLINFRA_GRPC_ENDPOINT=https://your-solinfra-yellowstone-fra-endpoint:443
+SOLINFRA_API_KEY=your-solinfra-api-key
+YELLOWSTONE_GRPC_ENDPOINT=https://your-yellowstone-endpoint:443
+YELLOWSTONE_GRPC_TOKEN=your-yellowstone-token
 YELLOWSTONE_COMMITMENT=processed
 ```
 
@@ -293,7 +305,7 @@ JITO_TESTNET_SECRET_KEY=[12,34,56,...]
 
 Never commit `.env.local`. The repo `.gitignore` already ignores `.env*` and only allows `.env.example`, but still check `git status` before committing. Fund only the generated testnet wallet with testnet SOL; never fund it on mainnet, never paste a mainnet wallet here, and never reuse a production keypair. Jito remains disabled unless `JITO_ENABLED=true`.
 
-Yellowstone improves judge-ready slot monitoring because RPC polling alone cannot provide the same low-latency stream ordering, skipped/dead slot signals, or processed-to-confirmed timing from a stream. Triton Dragon's Mouth documents Yellowstone gRPC as a backend stream, so BundleIQ keeps it server-side only. If `YELLOWSTONE_GRPC_ENDPOINT` or `YELLOWSTONE_GRPC_TOKEN` is missing, the app does not crash and does not claim Yellowstone is connected; `/api/solana/stream-status` returns `source: "rpc-fallback"` with devnet RPC slot data and a stream error explaining that streaming is not configured.
+Yellowstone improves judge-ready slot monitoring because RPC polling alone cannot provide the same low-latency stream ordering, skipped/dead slot signals, or processed-to-confirmed timing from a stream. Triton Dragon's Mouth documents Yellowstone gRPC as a backend stream, so BundleIQ keeps it server-side only. Final validation connected through SolInfra Yellowstone in FRA using server-side endpoint/API-key configuration. If SolInfra/Yellowstone credentials are absent or the stream is unavailable, the app does not crash and does not claim Yellowstone is connected; `/api/solana/stream-status` returns `source: "rpc-fallback"` with devnet RPC slot data and a direct stream status message.
 
 ## Devnet Safety Notes
 
@@ -306,8 +318,8 @@ Yellowstone improves judge-ready slot monitoring because RPC polling alone canno
 - Jito bundle submission is disabled by default and testnet-only when enabled.
 - Jito `sendBundle` receipts are labeled `submitted-not-landed` until checked separately.
 - Jito `network-error` records are failed operational evidence from testnet status checks, not landed bundles.
-- Yellowstone slot monitoring is server-side only and falls back to devnet RPC when not configured.
-- RPC fallback is Partial evidence, not a connected Yellowstone stream.
+- Yellowstone slot monitoring is server-side only and falls back to devnet RPC when credentials are absent or the stream is unavailable.
+- RPC fallback is Partial evidence only when a live Yellowstone stream is not connected.
 - Local Jito judge evidence is stored in `.data/jito-evidence.json` for export and screenshots. It stores bundle/status metadata only; secret keys are never stored.
 
 ## Known Limitations
@@ -316,7 +328,7 @@ Yellowstone improves judge-ready slot monitoring because RPC polling alone canno
 - Jito leader windows are estimated, not sourced from a real Jito leader schedule API.
 - Failure cases are simulated except for server/RPC errors during real devnet Memo submission.
 - Lifecycle rows are held in client state and are not persisted.
-- Yellowstone supports configured compatible endpoints when available; without one, the dashboard shows RPC fallback status and marks streaming as not configured.
+- SolInfra Yellowstone slot streaming connected during final validation. Without compatible credentials or during stream outage, the dashboard shows RPC fallback status and does not mark streaming as connected.
 
 ## Next Steps
 
@@ -330,9 +342,12 @@ Yellowstone improves judge-ready slot monitoring because RPC polling alone canno
 - [ ] GitHub repo URL: add final repository link before submission.
 - [ ] Deployed dashboard link: add final deployment URL before submission.
 - [x] Architecture doc: `docs/ARCHITECTURE.md`.
+- [ ] Public Architecture Document: [TO BE ADDED: Google Docs/Notion public URL].
 - [x] Evidence export: `docs/evidence/final-jito-evidence-summary.md` and `docs/evidence/final-jito-evidence-summary.json`.
 - [ ] Screenshots: capture dashboard/evidence screenshots before final upload.
 - [x] README answers: included below.
+- [x] SolInfra Yellowstone final validation: connected to live gRPC stream.
+- [x] Build and lint: `npm run lint` and `npm run build` pass.
 
 ## Judge Questions
 

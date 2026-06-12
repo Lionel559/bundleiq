@@ -16,8 +16,9 @@
 - Disabled-by-default Jito bundle construction and testnet `sendBundle` route.
 - Separate Jito bundle status-check route.
 - Final sanitized Jito evidence export with 31 real Jito testnet bundles landed and status-checked.
-- Yellowstone gRPC slot monitoring when configured, with RPC fallback marked honestly when streaming is not configured.
+- SolInfra Yellowstone gRPC slot monitoring, connected during final validation, with RPC fallback marked honestly when streaming is unavailable.
 - README judge questions.
+- Final validation: `npm run lint` and `npm run build` pass.
 
 ## Simulated
 
@@ -25,14 +26,15 @@
 - Dashboard bundle ID generation.
 - Jito leader timing.
 - Jito bundle status.
-- Dynamic Jito tip effect on bundle landing.
+- Varied dynamic Jito tip effect on landed bundle outcomes.
 - Failure cases:
   - expired blockhash
   - insufficient tip
   - compute exceeded
   - bundle rejected
-- AI-owned execution recommendation.
-- Autonomous retry decision.
+  - leader skipped slot
+- Deterministic AI-owned execution recommendation.
+- Deterministic retry decision.
 
 ## Real Devnet
 
@@ -40,7 +42,8 @@
 - Latest blockhash read.
 - Block height read.
 - Current slot read.
-- Yellowstone processed, confirmed, and finalized slot stream status when configured.
+- SolInfra Yellowstone processed, confirmed, and finalized slot stream status when configured.
+- SolInfra Yellowstone gRPC connected during final validation.
 - Real devnet Memo transaction submission.
 - Processed, confirmed, finalized lifecycle observations for Memo transactions.
 - Jito testnet bundle construction/submission boundary when explicitly enabled with `JITO_ENABLED=true` and a usable endpoint/network/wallet.
@@ -63,6 +66,7 @@
 - `network-error` records are failed operational evidence and are not counted as landed.
 - Simulated Jito bundle submission is implemented.
 - Simulated failures are implemented.
-- Yellowstone slot monitoring supports configured endpoints when available; missing config is shown as Not configured with safe RPC fallback.
-- Current Yellowstone credentials are not configured, so final public artifacts must claim RPC fallback only, not a connected Yellowstone stream.
-- The current AI decision panel is deterministic logic, not a live LLM agent.
+- Yellowstone slot monitoring supports configured endpoints when available; absent credentials, startup warm-up, or stream outage is shown with safe RPC fallback.
+- Final validation connected to SolInfra Yellowstone in FRA, while preserving RPC fallback.
+- The current AI decision panel is deterministic logic with visible reasoning, not a live LLM-autonomous production agent.
+- The dynamic tip engine supports live/recent network inputs, but final landed evidence used the minimum configured tip where applicable.

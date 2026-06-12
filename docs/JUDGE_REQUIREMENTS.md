@@ -4,12 +4,12 @@
 
 | Requirement | Status | Evidence |
 | --- | --- | --- |
-| Architecture design document | Completed | `docs/ARCHITECTURE.md` |
+| Architecture design document | Local completed; public URL pending | `docs/ARCHITECTURE.md`; Public Architecture Document: [TO BE ADDED: Google Docs/Notion public URL] |
 | Real bundle submissions | Completed | 31 real Jito testnet bundles landed and were status-checked in `docs/evidence/final-jito-evidence-summary.md`; private raw evidence contains 62 unique bundles with status checks and 76 total status-check attempts |
 | 2 failure cases | Simulated | Fault injection includes five simulated cases |
 | Lifecycle logs | Completed | Dashboard tracks real devnet Memo and simulated lifecycle rows |
-| AI-owned decision | Simulated | AI panel combines tip, leader timing, and retry decisions |
-| Autonomous retry | Simulated | `src/lib/retry/retry-agent.ts` returns retry actions |
+| AI-owned decision | Deterministic | AI panel combines visible tip, leader timing, failure, and retry reasoning |
+| Autonomous retry | Deterministic decision only | `src/lib/retry/retry-agent.ts` returns retry actions; no production autonomous resubmission loop is claimed |
 | Fault injection | Completed / simulated | `src/lib/solana/fault-injection.ts` |
 | README questions | Completed | README includes all three answers |
 
@@ -17,7 +17,11 @@
 
 ### Architecture Design Document
 
-Completed in `docs/ARCHITECTURE.md`.
+Completed locally in `docs/ARCHITECTURE.md`.
+
+Public Architecture Document:
+
+[TO BE ADDED: Google Docs/Notion public URL]
 
 ### Real Bundle Submissions
 
@@ -39,7 +43,9 @@ Observed counts from the final sanitized export and private raw evidence:
 - Unique bundles with status checks: 62
 - Total status-check attempts: 76
 - Landed slots recorded: 31
-- Yellowstone: not configured; RPC fallback only
+- SolInfra Yellowstone: connected during final validation
+- SolInfra endpoint region: FRA
+- Final validation: `npm run lint` passed; `npm run build` passed
 
 This follows the official Jito block-engine docs plus the Jito SDK/RPC examples conceptually: submission and landing are separate, and a bundle id is not proof of landing.
 
@@ -66,7 +72,7 @@ Real devnet Memo rows are clearly labeled `Real Devnet`. Simulated rows are labe
 
 ### AI-Owned Decision
 
-Simulated. The AI panel uses deterministic decision helpers:
+Deterministic. The AI panel uses decision helpers with visible reasoning:
 
 - `calculateDynamicTip()`
 - `estimateLeaderWindow()`
@@ -74,7 +80,7 @@ Simulated. The AI panel uses deterministic decision helpers:
 
 ### Autonomous Retry
 
-Simulated. Retry decisions are generated automatically from failure type, blockhash age, current tip, leader distance, and RPC latency. No real resubmission loop runs yet.
+Deterministic retry decisions are generated automatically from failure type, blockhash age, current tip, leader distance, and RPC latency. No production LLM-autonomous resubmission loop is claimed.
 
 ### Fault Injection
 
@@ -89,7 +95,8 @@ Completed in `README.md`.
 - BundleIQ does not count a real Jito bundle as landed until the separate bundle-status route records `landed` evidence.
 - BundleIQ treats `network-error` as failed operational evidence, not landed evidence.
 - BundleIQ only integrates Yellowstone slot monitoring; transactions and accounts are not subscribed yet.
-- BundleIQ does not claim a connected Yellowstone stream in the final public artifacts because credentials are not currently configured; the app reports RPC fallback/missing instead.
+- BundleIQ claims SolInfra Yellowstone connected only for the final validation run where the live stream connected; the app reports RPC fallback when credentials are absent, the stream is warming up, or the stream is unavailable.
+- BundleIQ does not claim that every landed bundle used varied dynamic tips; the tip engine supports live/recent inputs, and final landed evidence used the minimum configured tip where applicable.
 - BundleIQ does not use mainnet by default and rejects mainnet-like Jito URLs.
 - BundleIQ does not expose private keys in browser code.
 

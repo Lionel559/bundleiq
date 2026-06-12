@@ -341,7 +341,7 @@ export function exportNetworkStatusAsMarkdown(
     status.streamError?.toLowerCase().includes("mock fallback")
       ? "Mock fallback"
       : status.source === "yellowstone" && status.streamConnected
-      ? "Yellowstone connected"
+      ? "SolInfra Yellowstone connected"
       : "RPC fallback";
 
   return [
@@ -349,7 +349,11 @@ export function exportNetworkStatusAsMarkdown(
     "",
     `- Evidence source: ${evidenceSource}`,
     `- Source field: ${status.source}`,
+    `- Stream source: ${status.streamSource}`,
+    `- Endpoint region: ${status.endpointRegion}`,
     `- Current slot: ${status.currentSlot}`,
+    `- Latest streamed slot: ${status.latestStreamedSlot ?? "n/a"}`,
+    `- Parent slot: ${status.parentSlot ?? "n/a"}`,
     `- Processed slot: ${status.processedSlot ?? "n/a"}`,
     `- Confirmed slot: ${status.confirmedSlot ?? "n/a"}`,
     `- Finalized slot: ${status.finalizedSlot ?? "n/a"}`,
@@ -357,6 +361,7 @@ export function exportNetworkStatusAsMarkdown(
     `- Stream connected: ${status.streamConnected}`,
     `- Stream status: ${status.streamStatus}`,
     `- Stream error: ${status.streamError ?? "none"}`,
+    `- First seen: ${status.firstSeenAt ?? "n/a"}`,
     `- Last stream update: ${status.lastStreamUpdate ?? "n/a"}`,
   ].join("\n");
 }

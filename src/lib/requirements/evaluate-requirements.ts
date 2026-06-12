@@ -43,6 +43,7 @@ function isYellowstoneNotConfigured(streamStatus: YellowstoneStreamStatusRespons
   return (
     streamStatus.streamStatus === "unavailable" &&
     (streamStatus.streamError?.includes("not configured") ||
+      streamStatus.streamError?.includes("missing SOLINFRA") ||
       streamStatus.streamError?.includes("missing YELLOWSTONE") ||
       false)
   );
@@ -51,12 +52,17 @@ function isYellowstoneNotConfigured(streamStatus: YellowstoneStreamStatusRespons
 function evaluateSlotStreaming(
   streamStatus: YellowstoneStreamStatusResponse,
 ): JudgeRequirementCheck {
-  if (streamStatus.source === "yellowstone" && streamStatus.streamConnected) {
+  if (
+    streamStatus.source === "yellowstone" &&
+    streamStatus.streamConnected &&
+    streamStatus.latestStreamedSlot !== null
+  ) {
     return {
       id: "slot-streaming",
       label: "Slot streaming",
       status: "done",
-      evidence: "Yellowstone gRPC stream is connected and reporting devnet slot status.",
+      evidence:
+        `SolInfra Yellowstone gRPC stream is connected from FRA and reporting streamed slot ${streamStatus.latestStreamedSlot}.`,
     };
   }
 
@@ -66,7 +72,7 @@ function evaluateSlotStreaming(
       label: "Slot streaming",
       status: "missing",
       evidence:
-        "Yellowstone endpoint/token is not configured. RPC fallback is visible, but slot streaming is not connected.",
+        "SolInfra Yellowstone endpoint/API key is not configured. RPC fallback is visible, but slot streaming is not connected.",
     };
   }
 
@@ -76,7 +82,7 @@ function evaluateSlotStreaming(
       label: "Slot streaming",
       status: "partial",
       evidence:
-        "Yellowstone is unavailable; dashboard is using devnet RPC fallback and does not claim streaming is connected.",
+        "SolInfra Yellowstone is unavailable; dashboard is using devnet RPC fallback and does not claim streaming is connected.",
     };
   }
 
@@ -84,7 +90,7 @@ function evaluateSlotStreaming(
     id: "slot-streaming",
     label: "Slot streaming",
     status: "missing",
-    evidence: "No Yellowstone stream or RPC fallback slot status is currently available.",
+    evidence: "No SolInfra Yellowstone stream or RPC fallback slot status is currently available.",
   };
 }
 

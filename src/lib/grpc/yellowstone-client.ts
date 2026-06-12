@@ -1,9 +1,8 @@
 import type {
-  ChannelOptions,
-  ClientDuplexStream,
   SubscribeRequest,
   SubscribeUpdate,
 } from "@triton-one/yellowstone-grpc";
+import type { ChannelOptions, ClientDuplexStream } from "@grpc/grpc-js";
 
 import {
   getYellowstoneSlotSnapshot,
@@ -29,6 +28,7 @@ const SLOT_CONFIRMED_STATUS = 1;
 const SLOT_FINALIZED_STATUS = 2;
 const SLOT_DEAD_STATUS = 6;
 const DEFAULT_PING_INTERVAL_MS = 30_000;
+const DEFAULT_CONNECTION_STEP_TIMEOUT_MS = 15_000;
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const STREAM_EVENT_BUFFER_LIMIT = 256;
 const STREAM_EVENT_FLUSH_BATCH_SIZE = 64;
@@ -36,12 +36,19 @@ const STREAM_EVENT_FLUSH_BATCH_SIZE = 64;
 // Triton Dragon's Mouth docs target Yellowstone gRPC at backend software, not
 // browsers. This module is only reached from Node route handlers.
 type YellowstoneModule = typeof import("@triton-one/yellowstone-grpc");
+type YellowstoneDuplexStream = ClientDuplexStream<
+  SubscribeRequest,
+  SubscribeUpdate
+>;
+type YellowstoneClientInstance = InstanceType<YellowstoneModule["default"]> & {
+  connect?: () => Promise<void>;
+};
 
 interface YellowstoneRuntime {
   client: InstanceType<YellowstoneModule["default"]> | null;
-  stream: ClientDuplexStream | null;
+  stream: YellowstoneDuplexStream | null;
   eventQueue: Array<{
-    stream: ClientDuplexStream;
+    stream: YellowstoneDuplexStream;
     data: SubscribeUpdate;
   }>;
   queueFlushTimer: ReturnType<typeof setTimeout> | null;
@@ -71,11 +78,71 @@ function getRuntime() {
 }
 
 function getYellowstoneEndpoint() {
-  return process.env.YELLOWSTONE_GRPC_ENDPOINT?.trim() ?? "";
+  return (
+    process.env.SOLINFRA_GRPC_ENDPOINT?.trim() ||
+    process.env.YELLOWSTONE_GRPC_ENDPOINT?.trim() ||
+    ""
+  );
 }
 
-function getYellowstoneToken() {
-  return process.env.YELLOWSTONE_GRPC_TOKEN?.trim() ?? "";
+function hasEndpointProtocol(endpoint: string) {
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(endpoint);
+}
+
+function normalizeYellowstoneEndpoint(endpoint: string) {
+  if (!endpoint || hasEndpointProtocol(endpoint)) {
+    return endpoint;
+  }
+
+  return `https://${endpoint}`;
+}
+
+function getEndpointDebugInfo(endpoint: string) {
+  const normalizedEndpoint = normalizeYellowstoneEndpoint(endpoint);
+
+  try {
+    const url = new URL(normalizedEndpoint);
+    const port =
+      url.port || (url.protocol === "https:" ? "443" : url.protocol === "http:" ? "80" : "");
+
+    return {
+      configuredProtocol: hasEndpointProtocol(endpoint) ? endpoint.split("://", 1)[0] : "none",
+      normalizedProtocol: url.protocol.replace(":", ""),
+      host: url.hostname,
+      port,
+      inputLength: endpoint.length,
+    };
+  } catch {
+    return {
+      configuredProtocol: hasEndpointProtocol(endpoint) ? endpoint.split("://", 1)[0] : "none",
+      normalizedProtocol: "invalid",
+      host: "invalid",
+      port: "",
+      inputLength: endpoint.length,
+    };
+  }
+}
+
+function logYellowstoneDebug(
+  event: string,
+  details: Record<string, unknown> = {},
+) {
+  console.info("[yellowstone-debug]", event, details);
+}
+
+function logYellowstoneError(
+  event: string,
+  details: Record<string, unknown> = {},
+) {
+  console.error("[yellowstone-debug]", event, details);
+}
+
+function getYellowstoneApiKey() {
+  return (
+    process.env.SOLINFRA_API_KEY?.trim() ||
+    process.env.YELLOWSTONE_GRPC_TOKEN?.trim() ||
+    ""
+  );
 }
 
 function getYellowstoneCommitment(): YellowstoneCommitment {
@@ -119,37 +186,54 @@ function getPingIntervalMs() {
   return DEFAULT_PING_INTERVAL_MS;
 }
 
-function isDevnetConfigured() {
-  return (process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet") === "devnet";
+function getConnectionStepTimeoutMs() {
+  const rawTimeout = Number.parseInt(
+    process.env.YELLOWSTONE_GRPC_CONNECT_TIMEOUT_MS ?? "",
+    10,
+  );
+
+  if (Number.isFinite(rawTimeout) && rawTimeout >= 1_000) {
+    return rawTimeout;
+  }
+
+  return DEFAULT_CONNECTION_STEP_TIMEOUT_MS;
 }
 
-function isMainnetLikeEndpoint(endpoint: string) {
-  return /mainnet|mainnet-beta/i.test(endpoint);
+function withYellowstoneTimeout<T>(promise: Promise<T>, label: string) {
+  const timeoutMs = getConnectionStepTimeoutMs();
+
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      })
+      .catch((error: unknown) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+  });
 }
 
 function getYellowstoneConfigIssue() {
   const endpoint = getYellowstoneEndpoint();
-  const token = getYellowstoneToken();
+  const apiKey = getYellowstoneApiKey();
 
-  if (!isDevnetConfigured()) {
-    return "Yellowstone is disabled because BundleIQ is configured for devnet only.";
-  }
-
-  if (!endpoint && !token) {
+  if (!endpoint && !apiKey) {
     // Missing Yellowstone config is reported as RPC fallback, not as a stream.
-    return "Yellowstone is not configured: missing YELLOWSTONE_GRPC_ENDPOINT and YELLOWSTONE_GRPC_TOKEN. Using Solana devnet RPC fallback.";
+    return "SolInfra Yellowstone is not configured: missing SOLINFRA_GRPC_ENDPOINT/YELLOWSTONE_GRPC_ENDPOINT and SOLINFRA_API_KEY/YELLOWSTONE_GRPC_TOKEN. Using Solana devnet RPC fallback.";
   }
 
   if (!endpoint) {
-    return "Yellowstone is not configured: missing YELLOWSTONE_GRPC_ENDPOINT. Using Solana devnet RPC fallback.";
+    return "SolInfra Yellowstone is not configured: missing SOLINFRA_GRPC_ENDPOINT or YELLOWSTONE_GRPC_ENDPOINT. Using Solana devnet RPC fallback.";
   }
 
-  if (!token) {
-    return "Yellowstone is not configured: missing YELLOWSTONE_GRPC_TOKEN. Using Solana devnet RPC fallback.";
-  }
-
-  if (isMainnetLikeEndpoint(endpoint)) {
-    return "Yellowstone endpoint appears to target mainnet; BundleIQ Yellowstone monitoring is devnet only.";
+  if (!apiKey) {
+    return "SolInfra Yellowstone is not configured: missing SOLINFRA_API_KEY or YELLOWSTONE_GRPC_TOKEN. Using Solana devnet RPC fallback.";
   }
 
   return null;
@@ -167,11 +251,7 @@ function createSlotSubscribeRequest(fromSlot?: number | null): SubscribeRequest 
   const request: SubscribeRequest = {
     accounts: {},
     slots: {
-      slots: {
-        filterByCommitment: false,
-        interslotUpdates: true,
-      },
-      incoming_slots: {
+      solinfra_slots: {
         filterByCommitment: false,
         interslotUpdates: true,
       },
@@ -190,6 +270,18 @@ function createSlotSubscribeRequest(fromSlot?: number | null): SubscribeRequest 
   }
 
   return request;
+}
+
+function getSubscribeRequestDebugInfo(request: SubscribeRequest) {
+  return {
+    slotFilters: Object.keys(request.slots),
+    accountFilters: Object.keys(request.accounts).length,
+    transactionFilters: Object.keys(request.transactions).length,
+    blockFilters: Object.keys(request.blocks).length,
+    blockMetaFilters: Object.keys(request.blocksMeta).length,
+    commitment: request.commitment,
+    fromSlot: request.fromSlot ?? null,
+  };
 }
 
 function createPingRequest(): SubscribeRequest {
@@ -212,7 +304,7 @@ function createPingRequest(): SubscribeRequest {
 }
 
 function writeStreamRequest(
-  stream: ClientDuplexStream,
+  stream: YellowstoneDuplexStream,
   request: SubscribeRequest,
 ) {
   return new Promise<void>((resolve, reject) => {
@@ -255,13 +347,15 @@ function getSlotCommitmentStage(
   return null;
 }
 
-function handleStreamData(stream: ClientDuplexStream, data: SubscribeUpdate) {
+function handleStreamData(stream: YellowstoneDuplexStream, data: SubscribeUpdate) {
   if (data.slot) {
     const slot = parseSlot(data.slot.slot);
+    const parentSlot = parseSlot(data.slot.parent);
 
     if (slot !== null) {
       recordYellowstoneSlotUpdate({
         slot,
+        parentSlot,
         commitmentStage: getSlotCommitmentStage(data.slot.status),
         isSkipped: data.slot.status === SLOT_DEAD_STATUS,
       });
@@ -292,7 +386,7 @@ function scheduleQueueFlush() {
   }, 0);
 }
 
-function enqueueStreamData(stream: ClientDuplexStream, data: SubscribeUpdate) {
+function enqueueStreamData(stream: YellowstoneDuplexStream, data: SubscribeUpdate) {
   const runtime = getRuntime();
 
   runtime.eventQueue.push({ stream, data });
@@ -395,10 +489,11 @@ function scheduleReconnect(reason: string) {
 }
 
 function handleStreamFailure(reason: string) {
+  logYellowstoneError("stream failure", { reason });
   scheduleReconnect(reason);
 }
 
-function startPingLoop(stream: ClientDuplexStream) {
+function startPingLoop(stream: YellowstoneDuplexStream) {
   const runtime = getRuntime();
 
   clearPingTimer(runtime);
@@ -411,31 +506,54 @@ function startPingLoop(stream: ClientDuplexStream) {
 
 function getChannelOptions(): ChannelOptions {
   return {
-    grpcConnectTimeout: 15_000,
-    grpcTimeout: 15_000,
-    grpcHttp2KeepAliveInterval: getPingIntervalMs(),
-    grpcKeepAliveTimeout: 10_000,
-    grpcKeepAliveWhileIdle: true,
-    grpcTcpNodelay: true,
-    grpcMaxDecodingMessageSize: 64 * 1024 * 1024,
-    grpcMaxEncodingMessageSize: 8 * 1024 * 1024,
+    "grpc.keepalive_time_ms": getPingIntervalMs(),
+    "grpc.keepalive_timeout_ms": 10_000,
+    "grpc.keepalive_permit_without_calls": 1,
+    "grpc.max_receive_message_length": 64 * 1024 * 1024,
+    "grpc.max_send_message_length": 8 * 1024 * 1024,
   };
 }
 
-async function startYellowstoneStream(endpoint: string, token: string) {
+async function startYellowstoneStream(endpoint: string, apiKey: string) {
   const runtime = getRuntime();
+  const normalizedEndpoint = normalizeYellowstoneEndpoint(endpoint);
+
+  logYellowstoneDebug("connection attempt started", {
+    endpoint: getEndpointDebugInfo(endpoint),
+    tokenDetected: apiKey.length > 0,
+    tokenLength: apiKey.length,
+  });
+
   const yellowstone = await import("@triton-one/yellowstone-grpc");
   const YellowstoneClient = yellowstone.default;
-  const client = new YellowstoneClient(
-    endpoint,
-    token.length > 0 ? token : undefined,
+  // The SDK maps this constructor argument to the Yellowstone gRPC x-token
+  // metadata header, which carries the SolInfra API key server-side only.
+  const client: YellowstoneClientInstance = new YellowstoneClient(
+    normalizedEndpoint,
+    apiKey.length > 0 ? apiKey : undefined,
     getChannelOptions(),
   );
 
-  await client.connect();
+  logYellowstoneDebug("client instantiated", {
+    endpoint: getEndpointDebugInfo(endpoint),
+    hasConnectMethod: typeof client.connect === "function",
+  });
 
-  const stream = await client.subscribe();
+  if (typeof client.connect === "function") {
+    await withYellowstoneTimeout(client.connect(), "Yellowstone connect");
+    logYellowstoneDebug("connection success", { phase: "connect" });
+  }
+
+  const stream = await withYellowstoneTimeout(
+    client.subscribe(),
+    "Yellowstone subscribe",
+  );
   const { processedSlot } = getYellowstoneSlotSnapshot();
+  const subscribeRequest = createSlotSubscribeRequest(processedSlot);
+
+  logYellowstoneDebug("subscription stream created", {
+    request: getSubscribeRequestDebugInfo(subscribeRequest),
+  });
 
   runtime.client = client;
   runtime.stream = stream;
@@ -451,9 +569,16 @@ async function startYellowstoneStream(endpoint: string, token: string) {
     handleStreamFailure("Yellowstone stream closed.");
   });
 
-  await writeStreamRequest(stream, createSlotSubscribeRequest(processedSlot));
+  await withYellowstoneTimeout(
+    writeStreamRequest(stream, subscribeRequest),
+    "Yellowstone slot subscription write",
+  );
+  logYellowstoneDebug("slot subscription started", {
+    request: getSubscribeRequestDebugInfo(subscribeRequest),
+  });
   startPingLoop(stream);
   markYellowstoneConnected();
+  logYellowstoneDebug("connection success", { phase: "subscribe" });
 }
 
 export function isYellowstoneConfigured() {
@@ -463,18 +588,28 @@ export function isYellowstoneConfigured() {
 export async function ensureYellowstoneStream() {
   const runtime = getRuntime();
   const endpoint = getYellowstoneEndpoint();
-  const token = getYellowstoneToken();
+  const apiKey = getYellowstoneApiKey();
   const configIssue = getYellowstoneConfigIssue();
 
   setYellowstoneCommitment(getYellowstoneCommitment());
 
   if (configIssue) {
+    logYellowstoneDebug("configuration unavailable", {
+      endpoint: getEndpointDebugInfo(endpoint),
+      tokenDetected: apiKey.length > 0,
+      reason: configIssue,
+    });
     resetStream(runtime);
     markYellowstoneUnavailable(configIssue);
     return false;
   }
 
   if (runtime.starting || runtime.stream) {
+    logYellowstoneDebug("startup skipped", {
+      starting: runtime.starting,
+      hasStream: Boolean(runtime.stream),
+      streamConnected: getYellowstoneSlotSnapshot().streamConnected,
+    });
     return getYellowstoneSlotSnapshot().streamConnected;
   }
 
@@ -482,11 +617,18 @@ export async function ensureYellowstoneStream() {
     runtime.starting = true;
     clearReconnectTimer(runtime);
     markYellowstoneConnecting();
-    await startYellowstoneStream(endpoint, token);
+    await startYellowstoneStream(endpoint, apiKey);
     return true;
   } catch (error) {
-    markYellowstoneError(`Yellowstone connection failed: ${formatError(error)}`);
-    scheduleReconnect(`Yellowstone connection failed: ${formatError(error)}`);
+    const reason = `Yellowstone connection failed: ${formatError(error)}`;
+
+    logYellowstoneError("connection failure", {
+      endpoint: getEndpointDebugInfo(endpoint),
+      tokenDetected: apiKey.length > 0,
+      reason,
+    });
+    markYellowstoneError(reason);
+    scheduleReconnect(reason);
     return false;
   } finally {
     runtime.starting = false;

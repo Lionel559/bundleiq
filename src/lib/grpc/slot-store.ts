@@ -19,6 +19,9 @@ export type YellowstoneStreamStatus =
 
 export interface YellowstoneSlotSnapshot {
   currentSlot: number | null;
+  parentSlot: number | null;
+  latestStreamedSlot: number | null;
+  firstSeenAt: string | null;
   processedSlot: number | null;
   confirmedSlot: number | null;
   finalizedSlot: number | null;
@@ -41,6 +44,8 @@ export interface YellowstoneSlotSnapshot {
 export interface YellowstoneStreamStatusResponse
   extends Omit<YellowstoneSlotSnapshot, "currentSlot"> {
   source: "yellowstone" | "rpc-fallback";
+  streamSource: "SolInfra Yellowstone";
+  endpointRegion: "FRA";
   currentSlot: number;
 }
 
@@ -56,6 +61,9 @@ declare global {
 function createInitialState(): SlotStoreState {
   return {
     currentSlot: null,
+    parentSlot: null,
+    latestStreamedSlot: null,
+    firstSeenAt: null,
     processedSlot: null,
     confirmedSlot: null,
     finalizedSlot: null,
@@ -176,18 +184,30 @@ export function recordYellowstonePong() {
 
 export function recordYellowstoneSlotUpdate({
   slot,
+  parentSlot,
   commitmentStage,
   isSkipped,
 }: {
   slot: number;
+  parentSlot?: number | null;
   commitmentStage: SlotCommitmentStage | null;
   isSkipped?: boolean;
 }) {
   const store = getStore();
   const observedAt = Date.now();
+  const observedAtIso = new Date(observedAt).toISOString();
+  const isNewCurrentSlot = store.currentSlot === null || slot > store.currentSlot;
 
-  store.currentSlot = Math.max(store.currentSlot ?? 0, slot);
-  store.lastStreamUpdate = new Date(observedAt).toISOString();
+  if (isNewCurrentSlot) {
+    store.currentSlot = slot;
+    store.parentSlot = parentSlot ?? null;
+    store.firstSeenAt = observedAtIso;
+  } else if (slot === store.currentSlot && parentSlot !== undefined) {
+    store.parentSlot = parentSlot;
+  }
+
+  store.latestStreamedSlot = Math.max(store.latestStreamedSlot ?? 0, slot);
+  store.lastStreamUpdate = observedAtIso;
 
   if (commitmentStage === "processed") {
     store.processedSlot = Math.max(store.processedSlot ?? 0, slot);

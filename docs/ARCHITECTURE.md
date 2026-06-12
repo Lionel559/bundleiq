@@ -4,10 +4,14 @@
 
 BundleIQ separates real devnet-safe Solana operations from simulated Jito and failure workflows. It is built from the official public resources provided for the bounty: Jito SDK/docs, Yellowstone gRPC/docs, and Solana RPC/docs.
 
+## Public Architecture Document
+
+[TO BE ADDED: Google Docs/Notion public URL]
+
 ```text
 Dashboard UI
   -> /api/solana/stream-status
-      -> Yellowstone gRPC slot stream
+      -> SolInfra Yellowstone gRPC slot stream
       -> Solana devnet RPC fallback
   -> /api/solana/status
       -> Solana devnet Connection
@@ -36,7 +40,7 @@ Dashboard:
 
 Solana API routes:
 
-- `GET /api/solana/stream-status`: returns Yellowstone slot status when a compatible endpoint is configured, or clearly labeled devnet RPC fallback status when streaming is not configured.
+- `GET /api/solana/stream-status`: returns SolInfra Yellowstone slot status when a compatible endpoint is configured, or clearly labeled devnet RPC fallback status when streaming is unavailable.
 - `GET /api/solana/status`: returns devnet slot, block height, blockhash, last valid block height, and commitment.
 - `POST /api/solana/submit-memo`: submits a real devnet Memo transaction and returns lifecycle timing.
 - `POST /api/jito/bundle`: constructs base64 signed transactions plus a server-signed Jito tip transaction from the official Jito docs/SDK model, and submits only when explicitly enabled with a usable endpoint/network/wallet.
@@ -58,7 +62,7 @@ Solana libraries:
 
 Jito libraries:
 
-- `tip-engine.ts`: mock dynamic tip decisions.
+- `tip-engine.ts`: deterministic dynamic tip decisions from live/recent network inputs and local bundle history.
 - `leader-window.ts`: mock leader-window timing.
 - `bundle-adapter.ts`: adapter boundary for simulated bundle submission.
 - `server-adapter.ts`: server-only Jito testnet boundary following the official Jito sendBundle/status split.
@@ -116,14 +120,14 @@ The AI panel combines three deterministic decision sources:
 - Leader timing decision from `estimateLeaderWindow()`.
 - Retry decision from `decideRetryAction()`.
 
-It displays a concise execution recommendation and signal badges. This is not currently an LLM-driven autonomous production agent.
+It displays a concise execution recommendation, visible reasoning, and signal badges for failure, retry, tip, and timing decisions. This is a deterministic decision agent; it does not claim LLM-driven production autonomy or an autonomous production resubmission loop.
 
 ## Jito Adapter Flow
 
-Current mock-only flow:
+Current dashboard simulation flow:
 
 1. Dashboard calculates leader window.
-2. Dashboard calculates dynamic tip.
+2. Dashboard calculates a dynamic tip recommendation.
 3. Dashboard prepares bundle payload with `prepareBundlePayload()`.
 4. Dashboard calls `simulateBundleSubmission()`.
 5. Adapter returns mock bundle ID, status, tip, submitted timestamp, leader slot, and reason.
@@ -145,8 +149,11 @@ Yellowstone gRPC slot monitoring is integrated server-side only. The route uses 
 
 Current integration:
 
-1. `src/lib/grpc/yellowstone-client.ts` opens a server-side slot subscription.
+1. `src/lib/grpc/yellowstone-client.ts` opens a server-side SolInfra Yellowstone slot subscription.
 2. The stream records processed, confirmed, finalized, and skipped/dead slot updates.
-3. Ping keepalive and reconnect handling preserve the stream when configured.
-4. If endpoint or token is missing, `/api/solana/stream-status` returns `source: "rpc-fallback"` with devnet RPC slot data and a direct explanation that streaming is not configured.
-5. Account and transaction subscriptions remain a future expansion.
+3. Final validation connected to the SolInfra Yellowstone gRPC endpoint in FRA and received live slot updates.
+4. Ping keepalive, bounded event-buffer backpressure handling, and reconnect handling preserve the stream when configured.
+5. If endpoint/token credentials are absent or the stream is unavailable, `/api/solana/stream-status` returns `source: "rpc-fallback"` with devnet RPC slot data and a direct explanation that streaming is not connected.
+6. The final evidence uses 31 landed real Jito bundles, 62 unique status-checked bundles, and 76 total status-check attempts.
+7. `npm run lint` and `npm run build` pass for final validation.
+8. Account and transaction subscriptions remain a future expansion.

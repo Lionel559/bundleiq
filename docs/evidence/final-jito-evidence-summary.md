@@ -6,7 +6,7 @@ Generated from private local evidence at `.data/jito-evidence.json`. Raw `.data/
 
 31 real Jito testnet bundles landed and were status-checked.
 
-Bundle ID alone was not treated as success; status was checked separately. Yellowstone is not configured and remains reported as missing/RPC fallback.
+Bundle ID alone was not treated as success; status was checked separately. SolInfra Yellowstone gRPC connected during final validation, and RPC fallback remains preserved for unavailable stream conditions.
 
 ## Summary
 
@@ -18,13 +18,16 @@ Bundle ID alone was not treated as success; status was checked separately. Yello
 - Landed status-check attempts: 31
 - Landed slots recorded: 31
 - Failed/network-error operational records in raw evidence: 31
-- Yellowstone: not configured; RPC fallback only
+- SolInfra Yellowstone: connected during final validation
+- SolInfra endpoint region: FRA
+- Build validation: `npm run lint` passed; `npm run build` passed
 
 ## Judge Notes
 
 - All 31 exported records have `latestStatus: landed`, `checkedAt`, and `landedSlot`.
 - The private raw evidence source contains 62 unique bundles with separate status checks and 76 total status-check attempts.
 - Network-error and failed records remain failed operational evidence and are not counted as landed.
+- The dynamic tip engine supports live/recent network inputs. These final landed rows used the minimum configured tip where applicable; this export does not claim that every landed bundle used varied dynamic tips.
 - This export excludes secret keys, signed transaction bytes, raw status payloads, and `.env.local` contents.
 - Raw `.data/` evidence remains private and ignored by Git.
 
