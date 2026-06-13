@@ -558,13 +558,23 @@ function normalizeEvidenceFile(value: unknown): PersistedRealJitoEvidenceFile {
   };
 }
 
+function shouldUseStaticEvidenceFallback() {
+  return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+}
+
+function canWriteLocalEvidenceFile() {
+  return !shouldUseStaticEvidenceFallback();
+}
+
 function ensureDataDirectory() {
   mkdirSync(DATA_DIR, { recursive: true });
 }
 
 function readEvidenceFile(): PersistedRealJitoEvidenceFile {
   try {
-    ensureDataDirectory();
+    if (canWriteLocalEvidenceFile()) {
+      ensureDataDirectory();
+    }
 
     if (!existsSync(EVIDENCE_FILE_PATH)) {
       return withStaticFallback(createEmptyEvidenceFile());
@@ -579,6 +589,10 @@ function readEvidenceFile(): PersistedRealJitoEvidenceFile {
 }
 
 function writeEvidenceFile(store: PersistedRealJitoEvidenceFile) {
+  if (!canWriteLocalEvidenceFile()) {
+    return;
+  }
+
   ensureDataDirectory();
 
   writeFileSync(
@@ -597,10 +611,6 @@ function writeEvidenceFile(store: PersistedRealJitoEvidenceFile) {
 
 function hasEvidence(store: PersistedRealJitoEvidenceFile) {
   return store.records.length > 0;
-}
-
-function shouldUseStaticEvidenceFallback() {
-  return process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 }
 
 function readStaticEvidenceFile(): PersistedRealJitoEvidenceFile {
@@ -890,6 +900,10 @@ export function recordRealJitoStatusChecks(
 }
 
 export function removeRealJitoTestnetEvidence() {
+  if (!canWriteLocalEvidenceFile()) {
+    return 0;
+  }
+
   const store = readEvidenceFile();
   const nextRecords = store.records.filter(
     (record) => record.source !== "real-jito-testnet",
