@@ -6,6 +6,16 @@ export const metadata: Metadata = {
   title: "BundleIQ | Solana Infrastructure Dashboard",
   description:
     "A production-grade Solana infrastructure dashboard foundation for BundleIQ.",
+  icons: {
+    icon: [
+      {
+        url: "/icon.svg",
+        type: "image/svg+xml",
+        sizes: "any",
+      },
+    ],
+    shortcut: ["/icon.svg"],
+  },
 };
 
 export default function RootLayout({

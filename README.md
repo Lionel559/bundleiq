@@ -312,9 +312,23 @@ Yellowstone improves judge-ready slot monitoring because RPC polling alone canno
 
 ## Deployment Notes
 
-- Jito evidence on Vercel comes from `src/data/final-jito-evidence.json` when `.data/jito-evidence.json` is unavailable or empty. The API still prefers local `.data` evidence in runtime environments where it exists.
-- Yellowstone gRPC is loaded server-side through the package's CommonJS export to avoid Vercel/Node parsing the package's ESM `.js` output as CommonJS. `next.config.ts` explicitly includes the Yellowstone/gRPC runtime packages in the `/api/solana/stream-status` output trace so Vercel serverless bundles can resolve `@triton-one/yellowstone-grpc`. Local Node runtime Yellowstone remains supported when SolInfra endpoint/token values are configured.
-- If Vercel serverless cannot maintain the Yellowstone stream, `/api/solana/stream-status` returns `source: "rpc-fallback"` and the dashboard/requirement tracker must treat slot streaming as fallback evidence, not Done. Use the SolInfra active connection screenshot from local validation as Yellowstone evidence in that case.
+## Deployment Notes
+
+* Jito evidence on Vercel is loaded from `src/data/final-jito-evidence.json` whenever `.data/jito-evidence.json` is unavailable or empty. In persistent runtime environments, the application prefers `.data/jito-evidence.json` as the primary evidence source.
+
+* Yellowstone gRPC is loaded server-side through the package's CommonJS export to avoid Node.js and Vercel ESM compatibility issues. The Next.js configuration explicitly traces Yellowstone, gRPC, and related runtime dependencies for the `/api/solana/stream-status` route, ensuring all required packages are included in Vercel deployments.
+
+* Due to the serverless execution model of Vercel Functions, long-lived Yellowstone gRPC streams may not remain active for extended periods. When a live stream is unavailable, `/api/solana/stream-status` automatically falls back to Solana RPC data and reports `source: "rpc-fallback"`.
+
+* To provide reliable Yellowstone slot streaming, BundleIQ runs a dedicated persistent worker on Render:
+
+  https://bundleiq-3o3o.onrender.com
+
+* The Vercel dashboard consumes stream data from the Render worker rather than attempting to maintain a long-running Yellowstone gRPC connection within a serverless function.
+
+* This architecture preserves real-time Yellowstone monitoring while avoiding serverless lifecycle limitations and ensuring stable slot-streaming infrastructure for demonstration and evaluation purposes.
+
+
 
 ## Devnet Safety Notes
 
