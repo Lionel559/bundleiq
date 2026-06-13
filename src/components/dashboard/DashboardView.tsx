@@ -2206,30 +2206,30 @@ export function DashboardView() {
                   {realJitoStatusSummary.networkError}.
                 </div>
               )}
-              <div className="mt-4 min-w-0 overflow-x-auto rounded-md border border-white/10">
-                <table className="w-full min-w-full table-fixed text-left text-xs sm:min-w-[920px]">
+              <div className="mt-4 min-w-0 max-w-full overflow-x-auto rounded-md border border-white/10">
+                <table className="w-full min-w-[1728px] table-fixed text-left text-xs sm:min-w-[920px]">
                   <colgroup>
-                    <col className="w-[24%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[11%]" />
-                    <col className="w-[12%]" />
-                    <col className="w-[9%]" />
-                    <col className="w-[10%]" />
-                    <col className="w-[7%]" />
-                    <col className="w-[8%]" />
-                    <col className="w-[7%]" />
+                    <col className="w-[33rem] sm:w-[24%]" />
+                    <col className="w-40 sm:w-[12%]" />
+                    <col className="w-32 sm:w-[11%]" />
+                    <col className="w-40 sm:w-[12%]" />
+                    <col className="w-28 sm:w-[9%]" />
+                    <col className="w-36 sm:w-[10%]" />
+                    <col className="w-28 sm:w-[7%]" />
+                    <col className="w-40 sm:w-[8%]" />
+                    <col className="w-56 sm:w-[7%]" />
                   </colgroup>
                   <thead className="border-b border-white/10 text-muted-foreground">
                     <tr>
-                      <th className="break-words px-3 py-2 align-top font-medium">Bundle ID</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Submitted At</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Status</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Checked At</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Landed Slot</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Confirmation</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Tip</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Source</th>
-                      <th className="break-words px-3 py-2 align-top font-medium">Action</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Bundle ID</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Submitted At</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Status</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Checked At</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Landed Slot</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Confirmation</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Tip</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Source</th>
+                      <th className="whitespace-nowrap px-3 py-2 align-top font-medium">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2247,13 +2247,13 @@ export function DashboardView() {
                             key={record.bundleId}
                             className="border-b border-white/10 last:border-b-0"
                           >
-                            <td className="min-w-0 break-all px-3 py-3 align-top font-mono text-cyan-100">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-cyan-100 sm:whitespace-normal sm:break-all">
                               {record.bundleId}
                             </td>
-                            <td className="break-words px-3 py-3 align-top font-mono text-slate-300">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-slate-300 sm:whitespace-normal sm:break-words">
                               {formatEvidenceTimestamp(record.submittedAt)}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="whitespace-nowrap px-3 py-3 align-top sm:whitespace-normal">
                               <StatusBadge
                                 label={getRealJitoDashboardStatusLabel(
                                   dashboardStatus,
@@ -2261,32 +2261,32 @@ export function DashboardView() {
                                 status={getRealJitoDashboardStatusSeverity(
                                   dashboardStatus,
                                 )}
-                                className="h-auto min-h-6 min-w-0 max-w-full shrink whitespace-normal overflow-visible text-left leading-4"
+                                className="h-auto min-h-6 min-w-0 max-w-full shrink whitespace-nowrap overflow-visible text-left leading-4 sm:whitespace-normal"
                               />
                             </td>
-                            <td className="break-words px-3 py-3 align-top font-mono text-slate-300">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-slate-300 sm:whitespace-normal sm:break-words">
                               {formatEvidenceTimestamp(record.statusCheckedAt)}
                             </td>
-                            <td className="break-words px-3 py-3 align-top font-mono text-slate-300">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-slate-300 sm:whitespace-normal sm:break-words">
                               {formatEvidenceSlot(record.landedSlot)}
                             </td>
-                            <td className="break-words px-3 py-3 align-top font-mono text-slate-300">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-slate-300 sm:whitespace-normal sm:break-words">
                               {record.confirmationLevel ??
                                 record.confirmationStatus ??
                                 "Pending"}
                             </td>
-                            <td className="break-words px-3 py-3 align-top font-mono text-slate-300">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-slate-300 sm:whitespace-normal sm:break-words">
                               {formatLamports(record.tipLamports)}
                             </td>
-                            <td className="break-words px-3 py-3 align-top font-mono text-slate-300">
+                            <td className="whitespace-nowrap px-3 py-3 align-top font-mono text-slate-300 sm:whitespace-normal sm:break-words">
                               {record.source}
                             </td>
-                            <td className="px-3 py-3 align-top">
+                            <td className="whitespace-nowrap px-3 py-3 align-top sm:whitespace-normal">
                               <div className="min-w-0 space-y-2">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-auto min-h-7 min-w-0 max-w-full shrink whitespace-normal text-left leading-4"
+                                  className="h-auto min-h-7 min-w-0 max-w-full shrink whitespace-nowrap text-left leading-4 sm:whitespace-normal"
                                   onClick={() =>
                                     handleCheckRealJitoBundleStatus(
                                       record.bundleId,
@@ -2305,7 +2305,7 @@ export function DashboardView() {
                                       : "Check Bundle Status"}
                                 </Button>
                                 <details className="max-w-full text-xs text-slate-300">
-                                  <summary className="cursor-pointer break-words font-mono text-cyan-100">
+                                  <summary className="cursor-pointer whitespace-nowrap font-mono text-cyan-100 sm:whitespace-normal sm:break-words">
                                     Raw Status Payload
                                   </summary>
                                   <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-md border border-white/10 bg-black/30 p-2 text-[11px] leading-4 text-slate-300">
