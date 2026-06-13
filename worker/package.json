@@ -1,0 +1,21 @@
+{
+  "name": "bundleiq-yellowstone-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Persistent SolInfra Yellowstone gRPC slot stream worker for BundleIQ.",
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@triton-one/yellowstone-grpc": "^4.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}
