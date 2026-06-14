@@ -1967,20 +1967,20 @@ export function DashboardView() {
   ]);
 
   return (
-    <main className="min-h-screen overflow-x-hidden bg-background py-5 text-foreground lg:py-8">
+    <main className="min-h-screen overflow-x-hidden bg-background pb-5 pt-0 text-foreground lg:py-8">
       <div className="mx-auto flex w-[calc(100vw-2rem)] min-w-0 max-w-7xl flex-col gap-6 sm:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)]">
         <header className="rounded-lg border border-white/10 bg-[linear-gradient(135deg,rgba(15,23,42,0.92),rgba(4,9,15,0.96))] px-4 py-5 shadow-[0_24px_80px_rgba(0,0,0,0.36)] sm:px-6 lg:px-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0 max-w-3xl">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 max-w-3xl flex-col">
+              <div className="order-2 mt-3 flex flex-wrap items-center gap-2 lg:order-1 lg:mt-0">
                 <StatusBadge status={network.status} />
                 <StatusBadge label={networkFeedLabel} status={networkFeedSeverity} />
                 <StatusBadge label="Yellowstone P2" status="neutral" />
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-normal text-white sm:text-4xl">
+              <h1 className="order-1 text-3xl font-semibold tracking-normal text-white sm:text-4xl lg:order-2 lg:mt-4">
                 BundleIQ
               </h1>
-              <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-slate-300">
+              <p className="order-3 mt-3 max-w-2xl break-words text-sm leading-6 text-slate-300">
                 Production-style Solana infrastructure dashboard foundation for
                 slot monitoring, leader tracking, transaction lifecycle
                 visibility, Jito bundle status, dynamic tips, failure
